@@ -5,13 +5,16 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
-import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import com.bpjs.tracker.constant.ConnectionType
 import com.bpjs.tracker.service.ConnectionServiceImpl
+import java.util.concurrent.TimeUnit
 
 
 class MainActivity : AppCompatActivity() {
@@ -28,6 +31,17 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val btn = findViewById<Button>(R.id.test)
+        val btnShow = findViewById<Button>(R.id.show)
+        val btnDelete = findViewById<Button>(R.id.delete)
+        val btnConnectedInfo = findViewById<Button>(R.id.get_connect_info)
+
+//        val uploadWorkRequest: WorkRequest = PeriodicWorkRequestBuilder<ExampleWorker>(1, TimeUnit.MINUTES)
+//            .addTag("active-wifi").build()
+//
+//        WorkManager
+//            .getInstance(applicationContext)
+//            .enqueue(uploadWorkRequest)
+
 
         if (connectionService.getConnectionType(applicationContext) == ConnectionType.NO_CONNECTION) {
             AlertDialog.Builder(this).setTitle("Perhatian")
@@ -47,6 +61,16 @@ class MainActivity : AppCompatActivity() {
                         .setPositiveButton(android.R.string.ok) { dialog, _ -> dialog.cancel() }
                         .show()
             }
+        }
+
+        btnConnectedInfo.setOnClickListener {
+
+        }
+        btnShow.setOnClickListener {
+            connectionService.getNetwork(applicationContext)
+        }
+        btnDelete.setOnClickListener {
+            connectionService.deleteNetworkInDB(applicationContext)
         }
     }
 

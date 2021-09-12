@@ -10,6 +10,7 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import com.bpjs.tracker.constant.ConnectionType
 import com.bpjs.tracker.data.NetworkInfoWifi
+import com.bpjs.tracker.database.NetworkDatabase
 
 class ConnectionServiceImpl : ConnectionService {
 
@@ -36,6 +37,9 @@ class ConnectionServiceImpl : ConnectionService {
 
     @Suppress("DEPRECATION")
     override fun scanNetwork(context: Context) {
+
+        val db = NetworkDatabase.getDatabase(context)
+
         val wm = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
 
         val wifiScanReceiver: BroadcastReceiver
@@ -43,8 +47,8 @@ class ConnectionServiceImpl : ConnectionService {
             override fun onReceive(context: Context, intent: Intent) {
                 val success = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)
                 if (success) {
-                    scanSuccess(wm)
-                    context .unregisterReceiver(this)
+                    scanSuccess(wm, db)
+                    context.unregisterReceiver(this)
                 } else {
                     scanFailure()
                 }
@@ -61,13 +65,14 @@ class ConnectionServiceImpl : ConnectionService {
         }
     }
 
-    fun scanSuccess(wm: WifiManager) {
+    fun scanSuccess(wm: WifiManager, db: NetworkDatabase) {
         Log.d("SCAN-RESULT", "scan success")
         val results = wm.scanResults
         if (results != null) {
             for (res in results) {
-                val networkInfo = NetworkInfoWifi(res.BSSID, res.SSID, res.capabilities, res.frequency, res.channelWidth, res.level)
+                val networkInfo = NetworkInfoWifi(0, res.BSSID, res.SSID, res.capabilities, res.frequency, res.channelWidth, res.level)
                 Log.d("Network Info: ", networkInfo.toString())
+                db.networkInfoWifiDao().insertAll(networkInfo)
             }
             Log.d("------------------------------------", "End Info")
         } else {
@@ -78,5 +83,16 @@ class ConnectionServiceImpl : ConnectionService {
 
     fun scanFailure() {
         Log.d("SCAN-RESULT", "scan failure")
+    }
+
+    fun getNetwork (context: Context) {
+        val db = NetworkDatabase.getDatabase(context)
+        val datas = db.networkInfoWifiDao().getAll()
+        Log.d("DATA: --------", datas.toString())
+    }
+
+    fun deleteNetworkInDB (context: Context) {
+        val db = NetworkDatabase.getDatabase(context)
+        db.networkInfoWifiDao().deleteAll()
     }
 }
