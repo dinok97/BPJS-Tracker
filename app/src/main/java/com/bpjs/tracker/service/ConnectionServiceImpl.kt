@@ -35,6 +35,11 @@ class ConnectionServiceImpl : ConnectionService {
         return result
     }
 
+    override fun getConnectionBssid(context: Context): String {
+        val wm = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        return wm.connectionInfo.bssid
+    }
+
     @Suppress("DEPRECATION")
     override fun scanNetwork(context: Context) {
 
@@ -85,13 +90,12 @@ class ConnectionServiceImpl : ConnectionService {
         Log.d("SCAN-RESULT", "scan failure")
     }
 
-    fun getNetwork (context: Context) {
+    override fun getAllNetwork(context: Context): List<NetworkInfoWifi> {
         val db = NetworkDatabase.getDatabase(context)
-        val datas = db.networkInfoWifiDao().getAll()
-        Log.d("DATA: --------", datas.toString())
+        return db.networkInfoWifiDao().getAll()
     }
 
-    fun deleteNetworkInDB (context: Context) {
+    override fun deleteAllNetwork(context: Context) {
         val db = NetworkDatabase.getDatabase(context)
         db.networkInfoWifiDao().deleteAll()
     }
