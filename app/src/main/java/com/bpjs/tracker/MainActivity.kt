@@ -4,7 +4,8 @@ import android.Manifest
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.content.DialogInterface
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -21,12 +22,32 @@ import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.bpjs.tracker.constant.ConnectionType
+import com.bpjs.tracker.service.BluetoothLeService
 import com.bpjs.tracker.service.ConnectionServiceImpl
 
 
 class MainActivity : AppCompatActivity() {
 
     private val connectionService = ConnectionServiceImpl()
+    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private val bluetoothLeScanner = bluetoothAdapter?.bluetoothLeScanner
+    private var scanning = false
+    private val handler = Handler(Looper.getMainLooper())
+
+    private val bluetoothLeService = BluetoothLeService()
+    lateinit var leDeviceListAdapter: LeDeviceAdapter
+
+    // Device scan callback.
+    private val leScanCallback: ScanCallback = object : ScanCallback() {
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            super.onScanResult(callbackType, result)
+            leDeviceListAdapter.addDevice(result.device)
+            leDeviceListAdapter.notifyDataSetChanged()
+        }
+    }
+
+    // Stops scanning after 10 seconds.
+    private val SCAN_PERIOD: Long = 10000
 
     companion object {
         private const val FINE_LOCATION_PERMISSION_CODE = 100
@@ -69,7 +90,6 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
-        val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
         if (bluetoothAdapter == null) {
             AlertDialog.Builder(this).setTitle("Perhatian")
                 .setMessage("Perangkat ini tidak support Bluetooth, Anda tidak dapat menggunakan aplikasi ini")
@@ -101,13 +121,13 @@ class MainActivity : AppCompatActivity() {
             input.hint = "Nama Anda"
             input.inputType = InputType.TYPE_CLASS_TEXT
             builder.setView(input)
-            builder.setPositiveButton("OK", DialogInterface.OnClickListener { _, _ ->
+            builder.setPositiveButton("OK") { _, _ ->
                 txtName.text = input.text.toString()
 
-            })
+            }
             builder.setNegativeButton(
-                "Batal",
-                DialogInterface.OnClickListener { dialog, _ -> dialog.cancel() })
+                "Batal"
+            ) { dialog, _ -> dialog.cancel() }
             builder.show()
         }
 
@@ -129,7 +149,7 @@ class MainActivity : AppCompatActivity() {
 
             progressBar.visibility = View.VISIBLE
             Handler(Looper.getMainLooper()).postDelayed(
-                Runnable {
+                {
                     progressBar.visibility = View.GONE
                     imgNo1.visibility = View.GONE
                     imgCheck1.visibility = View.VISIBLE
@@ -146,14 +166,13 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // Initializes list view adapter.
-        val deviceList = arrayListOf(Device("80:EA:23:D0:9D:11", "Bluno2"))
-        val deviceScanAdapter = DeviceScanAdapter(applicationContext, deviceList)
-
         btnStartConnect.setOnClickListener {
+            leDeviceListAdapter = LeDeviceAdapter(this, ArrayList())
             progressBar.visibility = View.VISIBLE
-            Handler(Looper.getMainLooper()).postDelayed(
-                Runnable {
+            if (!scanning) {
+                handler.postDelayed({
+                    scanning = false
+                    bluetoothLeScanner?.stopScan(leScanCallback)
                     progressBar.visibility = View.GONE
                     imgNo2.visibility = View.GONE
                     imgCheck2.visibility = View.VISIBLE
@@ -167,26 +186,45 @@ class MainActivity : AppCompatActivity() {
                     AlertDialog.Builder(this)
                         .setTitle("BLE Device")
                         .setAdapter(
-                            deviceScanAdapter,
-                            DialogInterface.OnClickListener { dialogInterface, which ->
-                                val device: Device = deviceScanAdapter.getDevice(which)
-                                dialogInterface.dismiss()
-                            })
+                            leDeviceListAdapter
+                        ) { dialogInterface, which ->
+                            val device: BluetoothDevice = leDeviceListAdapter.getDevice(which)
+                            txtConnectedDevice.visibility = View.VISIBLE
+
+                            val deviceName = device.name
+                            val deviceAddress = device.address
+                            val txt = "Device: $deviceAddress"
+                            txtConnectedDevice.text = txt
+                            Log.d("DEVICE-INFO", "onListItemClick " + device.name)
+                            Log.d(
+                                "DEVICE-INFO",
+                                "Device Name:" + device.name + "   " + "Device Name:" + device.address
+                            )
+
+                            if (bluetoothLeService.connect(deviceAddress)) {
+                                Log.d("CONNECT-DEVICE-INFO", "Connect request success")
+                            } else {
+                                Log.d("CONNECT-DEVICE-INFO", "Connect request fail")
+                            }
+                            dialogInterface.dismiss()
+                        }
                         .setOnCancelListener {
                             it.dismiss()
                         }.create().show()
-                    txtConnectedDevice.visibility = View.VISIBLE
-                    val txt = "Device: " + deviceList[0].address
-                    txtConnectedDevice.text = txt
                     Toast.makeText(this, "koneksi berhasil!", Toast.LENGTH_SHORT).show()
-                }, 7000
-            )
+                }, SCAN_PERIOD)
+                scanning = true
+                bluetoothLeScanner?.startScan(leScanCallback)
+            } else {
+                scanning = false
+                bluetoothLeScanner?.stopScan(leScanCallback)
+            }
         }
 
         btnStartTracking.setOnClickListener {
             progressBar.visibility = View.VISIBLE
             Handler(Looper.getMainLooper()).postDelayed(
-                Runnable {
+                {
                     progressBar.visibility = View.GONE
                     imgNo3.visibility = View.GONE
                     imgCheck3.visibility = View.VISIBLE
@@ -200,7 +238,7 @@ class MainActivity : AppCompatActivity() {
                 3000
             )
             Handler(Looper.getMainLooper()).postDelayed(
-                Runnable {
+                {
                     AlertDialog.Builder(this).setTitle("Perhatian")
                         .setMessage("Anda keluar dari lokasi perawatan, informasi akan kami kirim ke RS")
                         .setPositiveButton(android.R.string.ok) { dialog, _ -> dialog.cancel() }
@@ -217,7 +255,7 @@ class MainActivity : AppCompatActivity() {
                     run {
                         progressBar.visibility = View.VISIBLE
                         Handler(Looper.getMainLooper()).postDelayed(
-                            Runnable {
+                            {
                                 btnStartConnect.setBackgroundColor(
                                     ContextCompat.getColor(
                                         this,
@@ -291,9 +329,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showNameDialog() {
 
-    }
 }
 
 

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">BPJS Tracker</string>
+    <string name="no_device">No Device</string>
 </resources>

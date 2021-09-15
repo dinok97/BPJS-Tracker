@@ -1,5 +1,7 @@
 package com.bpjs.tracker
 
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
@@ -8,9 +10,9 @@ import android.widget.BaseAdapter
 import android.widget.TextView
 import java.util.*
 
-class DeviceScanAdapter(
-    private val mainContext: Context,
-    private val mLeDevices: ArrayList<Device>
+class LeDeviceAdapter(
+    mainContext: Context,
+    private val mLeDevices: ArrayList<BluetoothDevice>
 ) : BaseAdapter() {
 
     private val mInflator: LayoutInflater
@@ -19,13 +21,13 @@ class DeviceScanAdapter(
         this.mInflator = LayoutInflater.from(mainContext)
     }
 
-    fun addDevice(device: Device) {
+    fun addDevice(device: BluetoothDevice) {
         if (!mLeDevices.contains(device)) {
             mLeDevices.add(device)
         }
     }
 
-    fun getDevice(position: Int): Device {
+    fun getDevice(position: Int): BluetoothDevice {
         return mLeDevices[position]
     }
 
@@ -45,10 +47,10 @@ class DeviceScanAdapter(
         return i.toLong()
     }
 
+    @SuppressLint("InflateParams")
     override fun getView(i: Int, view: View?, viewGroup: ViewGroup): View? {
         var view = view
         val viewHolder: ViewHolder
-        // General ListView optimization code.
         if (view == null) {
             view = mInflator.inflate(R.layout.listitem_device, null)
             viewHolder = ViewHolder()
@@ -64,8 +66,7 @@ class DeviceScanAdapter(
         val device = mLeDevices[i]
         val deviceName = device.name
         if (deviceName != null && deviceName.length > 0) viewHolder.deviceName?.text =
-            deviceName else viewHolder.deviceName?.text =
-            "R.string.unknown_device"
+            deviceName else viewHolder.deviceName?.text = "No Device"
         viewHolder.deviceAddress?.text = device.address
         return view
     }
@@ -75,8 +76,3 @@ internal class ViewHolder {
     var deviceName: TextView? = null
     var deviceAddress: TextView? = null
 }
-
-data class Device(
-    val address: String?,
-    val name: String?
-)
